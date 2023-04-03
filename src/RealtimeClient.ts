@@ -1,4 +1,4 @@
-import { w3cwebsocket } from 'websocket'
+// import { w3cwebsocket } from 'websocket'
 import {
   VSN,
   CHANNEL_EVENTS,
@@ -13,6 +13,9 @@ import Timer from './lib/timer'
 import Serializer from './lib/serializer'
 import RealtimeChannel from './RealtimeChannel'
 import type { RealtimeChannelOptions } from './RealtimeChannel'
+
+// declare const wx: any
+declare const uni: any
 
 export type RealtimeClientOptions = {
   transport?: WebSocket
@@ -45,7 +48,6 @@ export default class RealtimeClient {
   headers?: { [key: string]: string } = DEFAULT_HEADERS
   params?: { [key: string]: string } = {}
   timeout: number = DEFAULT_TIMEOUT
-  transport: any = w3cwebsocket
   heartbeatIntervalMs: number = 30000
   heartbeatTimer: ReturnType<typeof setInterval> | undefined = undefined
   pendingHeartbeatRef: string | null = null
@@ -55,7 +57,7 @@ export default class RealtimeClient {
   encode: Function
   decode: Function
   reconnectAfterMs: Function
-  conn: WebSocket | null = null
+  conn: any
   sendBuffer: Function[] = []
   serializer: Serializer = new Serializer()
   stateChangeCallbacks: {
@@ -93,7 +95,7 @@ export default class RealtimeClient {
     if (options?.headers) this.headers = { ...this.headers, ...options.headers }
     if (options?.timeout) this.timeout = options.timeout
     if (options?.logger) this.logger = options.logger
-    if (options?.transport) this.transport = options.transport
+
     if (options?.heartbeatIntervalMs)
       this.heartbeatIntervalMs = options.heartbeatIntervalMs
 
@@ -127,16 +129,45 @@ export default class RealtimeClient {
     if (this.conn) {
       return
     }
+    let that = this
+    // this.conn = new this.transport(this._endPointURL(), [], null, this.headers)
+    this.conn = uni.connectSocket({
+      url: this._endPointURL(),
+      header: this.headers,
+      success: (res: any) => {
+        // console.log('小程序连接成功：22222', res)
+        that._onConnOpen()
+        // that.openInit()
+      },
+      fail: (err: any) => {
+        // console.log('出现错误啦！！' + err)
+      },
+    })
+    // console.log('this.conn........11111111........')
+    // console.log(this.conn)
+    this.conn.onOpen(() => {
+      // console.log('onOpen............pppp')
+      that._onConnOpen()
+    })
+    this.conn.onError((error: any) => {
+      // console.log('onError............pppp')
+      that._onConnError(error as ErrorEvent)
+    })
+    this.conn.onMessage((event: any) => {
+      // console.log('onMessage............pppp')
+      // console.log(event)
+      that._onConnMessage(event)
+    })
 
-    this.conn = new this.transport(this._endPointURL(), [], null, this.headers)
-
-    if (this.conn) {
-      this.conn.binaryType = 'arraybuffer'
-      this.conn.onopen = () => this._onConnOpen()
-      this.conn.onerror = (error) => this._onConnError(error as ErrorEvent)
-      this.conn.onmessage = (event) => this._onConnMessage(event)
-      this.conn.onclose = (event) => this._onConnClose(event)
-    }
+    // this.conn.onmessage = (event: any) => {
+    //   console.log('onMessage............pppp')
+    //   console.log(event)
+    //   this._onConnMessage(event)
+    // }
+    this.conn.onClose((event: any) => {
+      // console.log('onClose............pppp')
+      this._onConnClose(event)
+    })
   }
 
   /**
@@ -198,6 +229,7 @@ export default class RealtimeClient {
    * For customized logging, `this.logger` can be overridden.
    */
   log(kind: string, msg: string, data?: any) {
+    // console.log(`${kind}: ${msg}`, data)
     this.logger(kind, msg, data)
   }
 
@@ -246,9 +278,24 @@ export default class RealtimeClient {
     const { topic, event, payload, ref } = data
     let callback = () => {
       this.encode(data, (result: any) => {
-        this.conn?.send(result)
+        // console.log('result....' + result)
+        const arrayBuffer = new TextEncoder().encode(result).buffer
+        // console.log('arrayBuffer....' + arrayBuffer)
+        this.conn?.send({
+          data: arrayBuffer,
+          success: (res: any) => {
+            // console.log('send success')
+          },
+          fail: (err: any) => {
+            // console.log('send fail')
+          },
+          complete: (res: any) => {
+            // console.log('send complete')
+          },
+        })
       })
     }
+
     this.log('push', `${topic} ${event} (${ref})`, payload)
     if (this.isConnected()) {
       if (['broadcast', 'presence', 'postgres_changes'].includes(event)) {
@@ -410,9 +457,28 @@ export default class RealtimeClient {
       return url
     }
     const prefix = url.match(/\?/) ? '&' : '?'
-    const query = new URLSearchParams(params)
+    // const query = new URLSearchParams(params)
+    const queryString = Object.keys(params)
+      .map(
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`
+      )
+      .join('&')
 
-    return `${url}${prefix}${query}`
+    const reg = /[?&]([^?&#]+)=([^?&#]+)/g
+
+    let paramsStr = ''
+    let ret = reg.exec(url)
+    while (ret) {
+      paramsStr += ret[1] + '=' + ret[2] + '&'
+      ret = reg.exec(url)
+    }
+    paramsStr += queryString
+
+    const regex = /(\?.*)?$/
+    url = url.replace(regex, `?${paramsStr}`)
+
+    return url
+    // return `${url}${prefix}${query}`
   }
 
   /** @internal */
