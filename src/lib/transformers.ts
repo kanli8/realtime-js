@@ -186,7 +186,7 @@ export const toJson = (value: RecordValue): RecordValue => {
     try {
       return JSON.parse(value)
     } catch (error) {
-      console.log(`JSON parse error: ${error}`)
+      // console.log(`JSON parse error: ${error}`)
       return value
     }
   }
