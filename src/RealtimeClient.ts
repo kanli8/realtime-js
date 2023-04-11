@@ -269,6 +269,15 @@ export default class RealtimeClient {
     return chan
   }
 
+  stringToUint8Array(str: string) {
+    const buf = new ArrayBuffer(str.length)
+    const bufView = new Uint8Array(buf)
+    for (let i = 0; i < str.length; i++) {
+      bufView[i] = str.charCodeAt(i)
+    }
+    return bufView
+  }
+
   /**
    * Push out a message if the socket is connected.
    *
@@ -279,7 +288,12 @@ export default class RealtimeClient {
     let callback = () => {
       this.encode(data, (result: any) => {
         // console.log('result....' + result)
-        const arrayBuffer = new TextEncoder().encode(result).buffer
+        // const arrayBuffer = new TextEncoder().encode(result).buffer
+        const arrayBuffer = this.stringToUint8Array(result)
+        // const arrayBuffer = unescape(
+        //   encodeURIComponent(result)).split("").map(
+        //     val => val.charCodeAt(0));
+
         // console.log('arrayBuffer....' + arrayBuffer)
         this.conn?.send({
           data: arrayBuffer,
