@@ -1,6 +1,6 @@
 {
   "name": "@kanli8_supabase/realtime-js",
-  "version": "2.4.0-4",
+  "version": "2.4.0-5",
   "description": "Listen to realtime updates to your PostgreSQL database",
   "keywords": [
     "realtime",

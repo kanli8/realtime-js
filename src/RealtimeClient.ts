@@ -289,12 +289,8 @@ export default class RealtimeClient {
       this.encode(data, (result: any) => {
         // console.log('result....' + result)
         // const arrayBuffer = new TextEncoder().encode(result).buffer
-        const arrayBuffer = this.stringToUint8Array(result)
-        // const arrayBuffer = unescape(
-        //   encodeURIComponent(result)).split("").map(
-        //     val => val.charCodeAt(0));
+        const arrayBuffer = this.stringToUint8Array(result).buffer
 
-        // console.log('arrayBuffer....' + arrayBuffer)
         this.conn?.send({
           data: arrayBuffer,
           success: (res: any) => {
